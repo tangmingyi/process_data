@@ -18,6 +18,17 @@ class ConvImage():
         image = cv2.resize(image,(self.image_size,self.image_size))
         plt.imsave(path,image)
 
+    def _merge_image(self,image):
+        if self.data_formate == "channel_first":
+            axis = 0
+        else:
+            axis = -1
+        return np.sum(image,axis=axis)
+
+    def _save_merge_image(self,image,path):
+        image = self._merge_image(image)
+        self._save_image(image,path)
+
 
     def _load_numpy_dir(self,path):
         return np.load(path)
@@ -42,14 +53,24 @@ class ConvImage():
                     image_name = "channel_{}.png".format(i + 1)
                 yield conv_image,path,image_name
 
+    def _channel_conv_image(self,numpy_list,npz_name):
+        for conv_image, path, image_name in self._process_numpy(numpy_list):
+            pic_path = os.path.join(self.conv_image_save_path, os.path.basename(npz_name)[:-4], path)
+            self._check_path(pic_path)
+            self._save_image(conv_image, os.path.join(pic_path, image_name))
+
+    def _merge_channel_conv_image(self,numpy_list,npz_name):
+        for k,v in numpy_list.items():
+            merge_path = os.path.join(self.conv_image_save_path, os.path.basename(npz_name)[:-4])
+            self._check_path(merge_path)
+            self._save_image(self._merge_image(v),os.path.join(merge_path,k+".png"))
 
     def process_conv_image_from_numpy(self):
         for npz in os.listdir(self.image_root_path):
             data = self._load_numpy_dir(os.path.join(self.image_root_path,npz))
-            for conv_image,path,image_name in self._process_numpy(data):
-                pic_path = os.path.join(self.conv_image_save_path,os.path.basename(npz)[:-4],path)
-                self._check_path(pic_path)
-                self._save_image(conv_image,os.path.join(pic_path,image_name))
+            self._channel_conv_image(data,npz)
+            self._merge_channel_conv_image(data,npz)
+
 
 def conv_test():
     image_root_path = "/home/tangmy/programming/picture_class/result/conv_image"
